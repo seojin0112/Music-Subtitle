@@ -433,18 +433,13 @@ MS.watch = (() => {
         ? hits.reduce((a, b) => (Math.abs(a.duration - dur) <= Math.abs(b.duration - dur) ? a : b))
         : hits[0];
       const lrc = MS.parser.parseLrc(best.syncedLyrics);
-      let j = 0, filled = 0, kept = 0;
-      lines.forEach(line => {
-        const norm = MS.parser.normalizeLyric(line.orig);
-        if (!norm) return;
-        for (let k = j; k < lrc.length; k++) {
-          if (MS.parser.normalizeLyric(lrc[k].text) === norm) {
-            if (line.t == null) { line.t = round1(lrc[k].t); filled++; }
-            else kept++;
-            j = k + 1;
-            break;
-          }
-        }
+      const pairs = lcsAlign(
+        lines.map(l => MS.parser.normalizeLyric(l.orig)),
+        lrc.map(e => MS.parser.normalizeLyric(e.text)));
+      let filled = 0, kept = 0;
+      pairs.forEach(({ i, k }) => {
+        if (lines[i].t == null) { lines[i].t = round1(lrc[k].t); filled++; }
+        else kept++;
       });
       MS.store.save();
       renderSyncPane();
@@ -457,6 +452,26 @@ MS.watch = (() => {
       console.warn('자동 싱크 실패:', err);
       syncStatus('자동 싱크 실패: ' + err.message);
     }
+  }
+
+  // 두 정규화 줄 배열을 순서를 보존하며 최대로 짝짓는 LCS 정렬 → [{i, k}].
+  // 근처에서 일치를 못 찾은 줄이 뒤쪽 반복 구절(후렴 등)의 같은 가사에 걸려
+  // 이후 줄 전체가 밀리는 문제가 있어, 탐욕 스캔 대신 전체 최적 정렬을 쓴다
+  function lcsAlign(a, b) {
+    const n = a.length, m = b.length;
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--)
+      for (let k = m - 1; k >= 0; k--)
+        dp[i][k] = a[i] && a[i] === b[k]
+          ? dp[i + 1][k + 1] + 1
+          : Math.max(dp[i + 1][k], dp[i][k + 1]);
+    const pairs = [];
+    for (let i = 0, k = 0; i < n && k < m;) {
+      if (a[i] && a[i] === b[k]) { pairs.push({ i, k }); i++; k++; }
+      else if (dp[i + 1][k] >= dp[i][k + 1]) i++;
+      else k++;
+    }
+    return pairs;
   }
 
   async function searchLrc(query) {
