@@ -6,18 +6,21 @@ MS.parser = (() => {
     return { t: null, orig: orig || '', pron: pron || '', trans: trans || '' };
   }
 
+  // "[Verse 1]", "【간주】"처럼 괄호로만 이루어진 줄은 가사가 아닌 구역 표시
+  function isSectionMarker(line) {
+    return /^(\[[^\]]*\]|【[^】]*】)$/.test(line);
+  }
+
   function toBlocks(text) {
     const blocks = [];
     let cur = [];
+    const closeBlock = () => { if (cur.length) { blocks.push(cur); cur = []; } };
     for (const raw of text.replace(/\r/g, '').split('\n')) {
       const line = raw.trim();
-      if (line === '') {
-        if (cur.length) { blocks.push(cur); cur = []; }
-      } else {
-        cur.push(line);
-      }
+      if (line === '' || isSectionMarker(line)) closeBlock(); // 구역 표시는 제거 + 블록 경계로 취급
+      else cur.push(line);
     }
-    if (cur.length) blocks.push(cur);
+    closeBlock();
     return blocks;
   }
 
