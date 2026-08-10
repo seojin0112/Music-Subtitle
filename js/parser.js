@@ -58,5 +58,25 @@ MS.parser = (() => {
     return out;
   }
 
-  return { parse, detect };
+  // LRC 형식("[mm:ss.xx] 가사")을 [{t, text}]로. 한 줄에 타임태그가 여러 개면 각각 항목 생성
+  function parseLrc(text) {
+    const out = [];
+    for (const raw of text.split('\n')) {
+      const m = raw.match(/^((?:\[\d+:\d+(?:\.\d+)?\])+)\s*(.*)$/);
+      if (!m || !m[2].trim()) continue;
+      for (const tag of m[1].match(/\[\d+:\d+(?:\.\d+)?\]/g)) {
+        const t = tag.match(/\[(\d+):(\d+(?:\.\d+)?)\]/);
+        out.push({ t: Number(t[1]) * 60 + Number(t[2]), text: m[2].trim() });
+      }
+    }
+    return out.sort((a, b) => a.t - b.t);
+  }
+
+  // 가사 줄 비교용 정규화: 공백·문장부호 제거, 전각/반각 통일
+  function normalizeLyric(s) {
+    return s.normalize('NFKC').toLowerCase()
+      .replace(/[\s、。！？!?.,…‥「」『』()（）〔〕[\]{}~〜・:;"'’”“-]/g, '');
+  }
+
+  return { parse, detect, parseLrc, normalizeLyric };
 })();

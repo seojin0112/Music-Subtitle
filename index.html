@@ -122,6 +122,7 @@
             <button id="btn-stamp" type="button" class="primary big">지금 (Space)</button>
           </div>
           <div class="sync-global">
+            <button id="sync-auto" type="button" title="LRC 데이터베이스에서 타임스탬프를 찾아 빈 줄에 자동 입력">⚡ 자동 싱크</button>
             <label>표시
               <select id="sync-field">
                 <option value="orig">원문</option>
@@ -134,6 +135,7 @@
             <span class="spacer"></span>
             <button id="sync-clear-all" type="button" class="danger">싱크 전체 초기화</button>
           </div>
+          <div id="sync-status" class="status-inline"></div>
           <ol id="sync-lines"></ol>
         </div>
       </div>

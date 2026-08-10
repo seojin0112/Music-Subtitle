@@ -410,6 +410,62 @@ MS.watch = (() => {
     st.player.seekTo(Math.max(0, st.player.getCurrentTime() + sec), true);
   }
 
+  function syncStatus(msg) {
+    els.syncStatus.textContent = msg;
+  }
+
+  // 자동 싱크: LRCLIB(공개 가사 싱크 DB)에서 곡을 찾아 LRC 타임스탬프를
+  // 나무위키 원문 줄과 순서 보존 매칭으로 대응시켜 "빈 줄에만" 채운다
+  async function autoSync() {
+    const lines = curLines();
+    if (!lines.length) { syncStatus('먼저 가사 입력 탭에서 가사를 저장하세요.'); return; }
+    const v = curVideo();
+    const title = (v.title || '').replace(/\(.*?\)|\[.*?\]|【.*?】/g, ' ').replace(/\s+/g, ' ').trim();
+    const artist = (v.channel || '').replace(/ - Topic$/i, '').split('/')[0]
+      .replace(/official|공식/ig, '').trim();
+    syncStatus('싱크 데이터 검색 중…');
+    try {
+      let hits = await searchLrc(title + ' ' + artist);
+      if (!hits.length && artist) hits = await searchLrc(title);
+      if (!hits.length) { syncStatus('싱크 데이터를 찾지 못했습니다. (검색어: ' + title + ')'); return; }
+      const dur = playerReady() ? st.player.getDuration() : null;
+      const best = dur
+        ? hits.reduce((a, b) => (Math.abs(a.duration - dur) <= Math.abs(b.duration - dur) ? a : b))
+        : hits[0];
+      const lrc = MS.parser.parseLrc(best.syncedLyrics);
+      let j = 0, filled = 0, kept = 0;
+      lines.forEach(line => {
+        const norm = MS.parser.normalizeLyric(line.orig);
+        if (!norm) return;
+        for (let k = j; k < lrc.length; k++) {
+          if (MS.parser.normalizeLyric(lrc[k].text) === norm) {
+            if (line.t == null) { line.t = round1(lrc[k].t); filled++; }
+            else kept++;
+            j = k + 1;
+            break;
+          }
+        }
+      });
+      MS.store.save();
+      renderSyncPane();
+      const src = best.trackName + ' — ' + best.artistName;
+      const durWarn = dur && Math.abs(best.duration - dur) > 10 ? ' ⚠ 곡 길이 차이가 큽니다. 확인하세요.' : '';
+      syncStatus(filled
+        ? filled + '줄 자동 입력됨 (' + src + ')' + (kept ? ', 기존 ' + kept + '줄은 유지' : '') + durWarn
+        : '일치하는 가사 줄이 없습니다 (' + src + ')' + durWarn);
+    } catch (err) {
+      console.warn('자동 싱크 실패:', err);
+      syncStatus('자동 싱크 실패: ' + err.message);
+    }
+  }
+
+  async function searchLrc(query) {
+    const res = await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(query),
+      { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error('LRCLIB 응답 오류 (' + res.status + ')');
+    return (await res.json()).filter(h => h.syncedLyrics);
+  }
+
   function offsetAll(d) {
     const lines = curLines();
     lines.forEach(l => {
@@ -534,7 +590,7 @@ MS.watch = (() => {
       noLyricsBtn: $('btn-no-lyrics'),
       syncLines: $('sync-lines'), playpause: $('sync-playpause'),
       wpl: $('watch-playlist'), wplTitle: $('wpl-title'), wplItems: $('wpl-items'),
-      wsItems: $('ws-items'), syncField: $('sync-field'),
+      wsItems: $('ws-items'), syncField: $('sync-field'), syncStatus: $('sync-status'),
     });
     els.syncField.value = localStorage.getItem('music-subtitle:sync-field') || 'orig';
     els.syncField.addEventListener('change', () => {
@@ -574,6 +630,7 @@ MS.watch = (() => {
       if (playerReady()) st.player.setPlaybackRate(parseFloat(e.target.value));
     });
     $('btn-stamp').addEventListener('click', e => { stamp(); e.target.blur(); });
+    $('sync-auto').addEventListener('click', autoSync);
     $('sync-offset-minus').addEventListener('click', () => offsetAll(-0.1));
     $('sync-offset-plus').addEventListener('click', () => offsetAll(0.1));
     $('sync-clear-all').addEventListener('click', e => MS.ui.armButton(e.target, () => {
