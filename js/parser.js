@@ -6,9 +6,17 @@ MS.parser = (() => {
     return { t: null, orig: orig || '', pron: pron || '', trans: trans || '' };
   }
 
-  // "[Verse 1]", "【간주】"처럼 괄호로만 이루어진 줄은 가사가 아닌 구역 표시
+  // "[Verse 1]", "【간주】"처럼 괄호로만 이루어졌고 내용이 알려진 구역 명칭인 줄만
+  // 구역 표시로 판정한다. "[愛してる]" 같은 대괄호 가사는 남긴다.
+  const SECTION_WORDS = new RegExp(
+    '^(?:pre[-\\s]?chorus|post[-\\s]?chorus|verse|chorus|intro|outro|bridge|hook|refrain' +
+    '|interlude|instrumental|inst\\.?|solo|break|drop|skit|rap' +
+    '|간주|전주|후주|후렴|코러스|브릿지|브리지|인트로|아웃트로|\\d+절' +
+    '|[a-z]メロ|(?:大|ラス)?サビ|イントロ|アウトロ|間奏|前奏|後奏)(?:\\s*\\d+)?$', 'i');
+
   function isSectionMarker(line) {
-    return /^(\[[^\]]*\]|【[^】]*】)$/.test(line);
+    const m = line.match(/^(?:\[([^\]]*)\]|【([^】]*)】)$/);
+    return !!m && SECTION_WORDS.test((m[1] || m[2] || '').trim());
   }
 
   function toBlocks(text) {
