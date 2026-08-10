@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Subtitle</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="app-header">
+  <a href="#/" id="logo">🎵 Music Subtitle</a>
+</header>
+
+<main>
+  <div id="app-status" class="status" hidden></div>
+
+  <section id="view-home" hidden>
+    <div class="add-forms">
+      <form id="form-add-playlist">
+        <input id="input-playlist" placeholder="유튜브 플레이리스트 URL 또는 ID" autocomplete="off">
+        <button class="primary">플레이리스트 추가</button>
+      </form>
+      <form id="form-add-video">
+        <input id="input-video" placeholder="유튜브 영상 URL 또는 ID" autocomplete="off">
+        <button>영상 추가</button>
+      </form>
+    </div>
+    <div class="home-toolbar">
+      <button id="btn-export-mode" type="button">내보내기</button>
+      <button id="btn-import-merge" type="button">가져오기(추가)</button>
+      <button id="btn-import-replace" type="button">가져오기(교체)</button>
+      <button id="btn-delete-mode" type="button" class="danger">삭제</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+      <span id="select-controls" hidden>
+        <button id="btn-select-all" type="button">전체 선택</button>
+        <button id="btn-select-confirm" type="button" class="primary">선택 내보내기</button>
+        <button id="btn-select-cancel" type="button">취소</button>
+      </span>
+    </div>
+    <div id="playlist-rows"></div>
+  </section>
+
+  <section id="view-list" hidden>
+    <div id="list-content"></div>
+  </section>
+
+  <section id="view-watch" hidden>
+    <div class="watch-layout">
+      <aside id="watch-sidebar">
+        <a class="ws-home" href="#/">🏠 홈</a>
+        <div class="ws-title">플레이리스트</div>
+        <ol id="ws-items"></ol>
+      </aside>
+      <div class="watch-left">
+        <div class="player-wrap">
+          <div id="player-host"></div>
+          <div id="player-overlay" hidden>
+            <span class="overlay-hint">싱크 모드 — 클릭하면 재생/일시정지, 조작은 오른쪽 버튼 사용</span>
+          </div>
+          <div id="player-error" hidden></div>
+        </div>
+        <h2 id="watch-title"></h2>
+        <div id="watch-channel" class="muted"></div>
+        <div class="watch-actions">
+          <a id="watch-youtube-link" target="_blank" rel="noopener">유튜브에서 보기 ↗</a>
+          <span class="spacer"></span>
+          <button id="btn-prev-video" type="button" hidden>◀ 이전</button>
+          <button id="btn-next-video" type="button" hidden>다음 ▶</button>
+        </div>
+        <div id="watch-playlist" hidden>
+          <div class="wpl-head" id="wpl-title"></div>
+          <ol id="wpl-items"></ol>
+        </div>
+      </div>
+
+      <div class="watch-right">
+        <nav class="mode-tabs">
+          <button type="button" data-mode="view" class="active">자막</button>
+          <button type="button" data-mode="edit">가사 입력</button>
+          <button type="button" data-mode="sync">싱크</button>
+        </nav>
+        <div id="pane-view"></div>
+
+        <div id="pane-edit" hidden>
+          <p class="hint">나무위키 가사 부분을 복사해 붙여넣으세요. 원문/발음/해석을 자동으로 분리하고,
+            한자 위 후리가나(루비)는 자동 제거됩니다. 열이 어긋나면 아래 교환 버튼으로 바로잡을 수 있습니다.</p>
+          <textarea id="edit-text" rows="12" placeholder="여기에 가사를 붙여넣으세요"></textarea>
+          <div class="edit-controls">
+            <label>구분 방식
+              <select id="edit-pattern">
+                <option value="auto">자동 감지</option>
+                <option value="block">빈 줄로 구분된 블록</option>
+                <option value="3">3줄 반복 (원문/발음/해석)</option>
+                <option value="2">2줄 반복 (원문/해석)</option>
+                <option value="1">1줄 (원문만)</option>
+              </select>
+            </label>
+            <button id="btn-swap-orig-pron" type="button">원문↔발음 교환</button>
+            <button id="btn-swap-pron-trans" type="button">발음↔해석 교환</button>
+            <span class="spacer"></span>
+            <button id="btn-no-lyrics" type="button">가사 없는 곡으로 표시</button>
+            <button id="btn-save-lines" type="button" class="primary">저장</button>
+          </div>
+          <div id="edit-status" class="status-inline"></div>
+          <table id="edit-preview"></table>
+        </div>
+
+        <div id="pane-sync" hidden>
+          <p class="hint">영상을 재생하며 각 줄이 시작되는 순간 <b>스페이스</b> 또는 [지금] 버튼을 누르세요.
+            가사를 클릭하면 그 시간부터 재생되고, 시간을 클릭하면 직접 수정할 수 있습니다.
+            (←/→ 3초 이동, ↑/↓ 대상 줄 이동)</p>
+          <div class="sync-transport">
+            <button id="sync-back5" type="button">−5초</button>
+            <button id="sync-playpause" type="button">재생</button>
+            <button id="sync-fwd5" type="button">+5초</button>
+            <select id="sync-speed" title="재생 속도">
+              <option value="0.5">0.5×</option>
+              <option value="0.75">0.75×</option>
+              <option value="1" selected>1×</option>
+            </select>
+            <button id="btn-stamp" type="button" class="primary big">지금 (Space)</button>
+          </div>
+          <div class="sync-global">
+            <label>표시
+              <select id="sync-field">
+                <option value="orig">원문</option>
+                <option value="pron">발음</option>
+                <option value="trans">해석</option>
+              </select>
+            </label>
+            <button id="sync-offset-minus" type="button">전체 −0.1초</button>
+            <button id="sync-offset-plus" type="button">전체 +0.1초</button>
+            <span class="spacer"></span>
+            <button id="sync-clear-all" type="button" class="danger">싱크 전체 초기화</button>
+          </div>
+          <ol id="sync-lines"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="hidden-players" aria-hidden="true"></div>
+
+<script src="js/storage.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/youtube.js"></script>
+<script src="js/watch.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
